@@ -35,6 +35,8 @@ var decoderSkipTests = []struct {
 	{in: `[1,[{"b":[1]},3],5]`, path: []interface{}{2}, match: true, out: float64(5), err: nil},
 	{in: `{"b":[{"a":0},{"a":1}]}`, path: []interface{}{"b", 0, "a"}, match: true, out: float64(0), err: nil},
 	{in: `{"b":[{"a":0},{"a":1}]}`, path: []interface{}{"b", 1, "a"}, match: true, out: float64(1), err: nil},
+	{in: `{"a":"b","b":"z","z":"s"}`, path: []interface{}{"b"}, match: true, out: "z", err: nil},
+	{in: `{"a":"b","b":"z","l":0,"z":"s"}`, path: []interface{}{"z"}, match: true, out: "s", err: nil},
 }
 
 func TestDecoderMoveTo(t *testing.T) {

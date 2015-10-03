@@ -78,6 +78,7 @@ func (w *Walker) moveToKey(s string) (bool, error) {
 	var st json.Token
 	var err error
 	var depth = 0 // we start at the beginning of an object
+	var keyString = true
 
 	for {
 		st, err = w.Token()
@@ -89,9 +90,12 @@ func (w *Walker) moveToKey(s string) (bool, error) {
 
 		switch st := st.(type) {
 		case string:
-			if depth <= 1 && s == st {
-				w.pushNav(s)
-				return true, nil
+			if depth <= 1 {
+				if keyString && s == st {
+					w.pushNav(s)
+					return true, nil
+				}
+				keyString = !keyString
 			}
 		case json.Delim:
 			switch st {
@@ -103,6 +107,9 @@ func (w *Walker) moveToKey(s string) (bool, error) {
 					return false, nil
 				}
 			}
+			keyString = true
+		default:
+			keyString = true
 		}
 	}
 }
