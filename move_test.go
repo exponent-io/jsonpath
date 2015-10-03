@@ -1,4 +1,4 @@
-package json_walk
+package json_seek
 
 import (
 	"bytes"
@@ -47,10 +47,10 @@ func TestDecoderMoveTo(t *testing.T) {
 
 	for ti, tst := range decoderSkipTests {
 
-		w := NewWalker(bytes.NewBuffer([]byte(tst.in)))
+		w := NewSeekingDecoder(bytes.NewBuffer([]byte(tst.in)))
 		testDesc = fmt.Sprintf("#%v '%s'", ti, tst.in)
 
-		match, err = w.MoveTo(tst.path...)
+		match, err = w.SeekTo(tst.path...)
 		if match != tst.match {
 			t.Errorf("#%v expected match=%v was match=%v : %v", ti, tst.match, match, testDesc)
 		}
@@ -138,7 +138,7 @@ func TestDecoderMoveMultiple(t *testing.T) {
 
 	for _, tst := range tests {
 
-		w := NewWalker(bytes.NewBuffer(j))
+		w := NewSeekingDecoder(bytes.NewBuffer(j))
 
 		var err error
 		var v interface{}
@@ -146,7 +146,7 @@ func TestDecoderMoveMultiple(t *testing.T) {
 
 		for _, step := range tst {
 
-			m, err = w.MoveTo(step.path...)
+			m, err = w.SeekTo(step.path...)
 			if m != step.match {
 				t.Errorf("expected match=%v, but was match=%v", step.match, m)
 			}

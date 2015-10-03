@@ -1,4 +1,4 @@
-package json_walk
+package json_seek
 
 import (
 	"encoding/json"
@@ -6,18 +6,20 @@ import (
 	"io"
 )
 
-type Walker struct {
+// SeekingDecoder is a specialization of the encoding/json.Decoder that supports seeking to a position
+// in a JSON token stream using the MoveTo() method.
+type SeekingDecoder struct {
 	json.Decoder
 
 	navStack    []interface{} // keeps track of the move operations so we can figure out where the next one should be
 	arrayOffset int           // saves the array offset so we can continue MoveToIndex where we left off
 }
 
-func NewWalker(r io.Reader) *Walker {
-	return &Walker{Decoder: *json.NewDecoder(r)}
+func NewSeekingDecoder(r io.Reader) *SeekingDecoder {
+	return &SeekingDecoder{Decoder: *json.NewDecoder(r)}
 }
 
-// MoveTo wraps a json.Decoder causing it to move forward to a given path in the JSON structure.
+// MoveTo causes the Decoder to move forward to a given path in the JSON structure.
 //
 // The path argument must consist of strings or integers. Each string specifies an JSON object key, and
 // each integer specifies an index into a JSON array.
@@ -32,9 +34,9 @@ func NewWalker(r io.Reader) *Walker {
 //
 // MoveTo returns a boolean value indicating whether a match was found.
 //
-// The Walker is intended to be used with a JSON stream of tokens. As a result it navigates forward only. The Walker
-// also keeps state about its position in the token stream.
-func (w *Walker) MoveTo(path ...interface{}) (bool, error) {
+// SeekingDecoder is intended to be used with a JSON stream of tokens. As a result it navigates forward only.
+// The SeekingDecoder also keeps state about its position in the token stream.
+func (w *SeekingDecoder) SeekTo(path ...interface{}) (bool, error) {
 
 	var matched bool
 	var err error
@@ -42,7 +44,7 @@ func (w *Walker) MoveTo(path ...interface{}) (bool, error) {
 	// if we've already moved before, advance to the next token that shares a common
 	// prefix with the current location
 	if len(w.navStack) != 0 {
-		matched, err = w.moveToCommonPrefix(path...)
+		matched, err = w.seekToCommonPrefix(path...)
 		if !matched || err != nil {
 			return matched, err
 		}
@@ -53,12 +55,12 @@ func (w *Walker) MoveTo(path ...interface{}) (bool, error) {
 
 		switch p := p.(type) {
 		case int:
-			matched, err = w.moveToIndex(p)
+			matched, err = w.seekToIndex(p)
 			if !matched || err != nil {
 				return matched, err
 			}
 		case string:
-			matched, err = w.moveToKey(p)
+			matched, err = w.seekToKey(p)
 			if !matched || err != nil {
 				return matched, err
 			}
@@ -69,11 +71,11 @@ func (w *Walker) MoveTo(path ...interface{}) (bool, error) {
 	return true, nil
 }
 
-// moveToKey traverses to the JSON value corresponding to the provided key.
-// The decoder must be currently positioned on a JSON object. MoveToKey returns a boolean value
+// seekToKey traverses to the JSON value corresponding to the provided key.
+// The decoder must be currently positioned on a JSON object. seekToKey returns a boolean value
 // indicating whether the key was found as well as an error value if an error occurred while traversing
 // the JSON structure.
-func (w *Walker) moveToKey(s string) (bool, error) {
+func (w *SeekingDecoder) seekToKey(s string) (bool, error) {
 
 	var st json.Token
 	var err error
@@ -114,11 +116,11 @@ func (w *Walker) moveToKey(s string) (bool, error) {
 	}
 }
 
-// moveToIndex traverses to the JSON value corresponding to the provided array offset.
-// The decoder must be currently positioned on a JSON array. MoveToIndex returns a boolean value
+// seekToIndex traverses to the JSON value corresponding to the provided array offset.
+// The decoder must be currently positioned on a JSON array. seekToIndex returns a boolean value
 // indicating whether the value was found as well as an error value if an error occurred while traversing
 // the JSON structure.
-func (w *Walker) moveToIndex(n int) (bool, error) {
+func (w *SeekingDecoder) seekToIndex(n int) (bool, error) {
 
 	var err error
 	var st json.Token
@@ -164,10 +166,10 @@ func (w *Walker) moveToIndex(n int) (bool, error) {
 	}
 }
 
-// moveToCommonPrefix moves the decoder to a point in the JSON structure that shares a
+// seekToCommonPrefix moves the decoder to a point in the JSON structure that shares a
 // common prefix with the last MoveTo operation. This allows for repeated calls to MoveTo
 // without the caller having to worry about translating absolute moves into relative moves.
-func (w *Walker) moveToCommonPrefix(path ...interface{}) (bool, error) {
+func (w *SeekingDecoder) seekToCommonPrefix(path ...interface{}) (bool, error) {
 
 	w.popNav()
 
@@ -207,11 +209,11 @@ func (w *Walker) moveToCommonPrefix(path ...interface{}) (bool, error) {
 	}
 }
 
-func (w *Walker) pushNav(n interface{}) {
+func (w *SeekingDecoder) pushNav(n interface{}) {
 	w.navStack = append(w.navStack, n)
 }
 
-func (w *Walker) popNav() interface{} {
+func (w *SeekingDecoder) popNav() interface{} {
 	last := len(w.navStack) - 1
 	n := w.navStack[last]
 
@@ -224,14 +226,14 @@ func (w *Walker) popNav() interface{} {
 	return n
 }
 
-func (w *Walker) setNavLen(depth int) {
+func (w *SeekingDecoder) setNavLen(depth int) {
 	n := len(w.navStack) - depth
 	for i := 0; i < n; i++ {
 		w.popNav()
 	}
 }
 
-func (w *Walker) countCommonPrefix(path ...interface{}) int {
+func (w *SeekingDecoder) countCommonPrefix(path ...interface{}) int {
 	for i, p := range path {
 		if i == len(w.navStack) || p != w.navStack[i] {
 			return i
