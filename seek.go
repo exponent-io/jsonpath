@@ -6,20 +6,20 @@ import (
 	"io"
 )
 
-// SeekingDecoder is a specialization of the encoding/json.Decoder that supports seeking to a position
-// in a JSON token stream using the MoveTo() method.
+// SeekingDecoder extends the encoding/json.Decoder to support seeking to a position
+// in a JSON token stream using the SeekTo() method.
 type SeekingDecoder struct {
 	json.Decoder
 
 	navStack    []interface{} // keeps track of the move operations so we can figure out where the next one should be
-	arrayOffset int           // saves the array offset so we can continue MoveToIndex where we left off
+	arrayOffset int           // saves the array offset so we can continue SeekToIndex where we left off
 }
 
 func NewSeekingDecoder(r io.Reader) *SeekingDecoder {
 	return &SeekingDecoder{Decoder: *json.NewDecoder(r)}
 }
 
-// MoveTo causes the Decoder to move forward to a given path in the JSON structure.
+// SeekTo causes the Decoder to move forward to a given path in the JSON structure.
 //
 // The path argument must consist of strings or integers. Each string specifies an JSON object key, and
 // each integer specifies an index into a JSON array.
@@ -28,14 +28,18 @@ func NewSeekingDecoder(r io.Reader) *SeekingDecoder {
 //
 //  { "a": [0,"s",12e4,{"b":0,"v":35} ] }
 //
-// MoveTo("a",3,"v") will move to the value referenced by the "a" key in the current object,
+// SeekTo("a",3,"v") will move to the value referenced by the "a" key in the current object,
 // followed by a move to the 4th value (index 3) in the array, followed by a move to the value at key "v".
 // In this example, a subsequent call to the decoder's Decode() would unmarshal the value 35.
 //
-// MoveTo returns a boolean value indicating whether a match was found.
+// SeekTo returns a boolean value indicating whether a match was found.
 //
-// SeekingDecoder is intended to be used with a JSON stream of tokens. As a result it navigates forward only.
-// The SeekingDecoder also keeps state about its position in the token stream.
+// SeekingDecoder is intended to be used with a stream of tokens. As a result it navigates forward only.
+//
+// The SeekingDecoder also keeps state about its position in the token stream. It is safe to use the Decode()
+// method to read JSON values between calls to SeekTo. However, calling Token() between calls
+// to SeekTo could confuse the SeekingDecoder unless care is made to always read all the tokens that comprise a
+// JSON value before calling SeekTo again.
 func (w *SeekingDecoder) SeekTo(path ...interface{}) (bool, error) {
 
 	var matched bool
@@ -167,7 +171,7 @@ func (w *SeekingDecoder) seekToIndex(n int) (bool, error) {
 }
 
 // seekToCommonPrefix moves the decoder to a point in the JSON structure that shares a
-// common prefix with the last MoveTo operation. This allows for repeated calls to MoveTo
+// common prefix with the last SeekTo operation. This allows for repeated calls to SeekTo
 // without the caller having to worry about translating absolute moves into relative moves.
 func (w *SeekingDecoder) seekToCommonPrefix(path ...interface{}) (bool, error) {
 

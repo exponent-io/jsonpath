@@ -39,7 +39,7 @@ var decoderSkipTests = []struct {
 	{in: `{"a":"b","b":"z","l":0,"z":"s"}`, path: []interface{}{"z"}, match: true, out: "s", err: nil},
 }
 
-func TestDecoderMoveTo(t *testing.T) {
+func TestDecoderSeekTo(t *testing.T) {
 	var testDesc string
 	var v interface{}
 	var match bool

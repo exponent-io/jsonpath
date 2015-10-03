@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func ExampleSeekingDecoder_MoveTo() {
+func ExampleSeekingDecoder_SeekTo() {
 
 	var j = []byte(`[
 		{"Space": "YCbCr", "Point": {"Y": 255, "Cb": 0, "Cr": -10}},
