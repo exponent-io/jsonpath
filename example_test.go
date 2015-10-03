@@ -2,7 +2,6 @@ package json_walk
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 )
 
@@ -13,20 +12,19 @@ func ExampleDecoder_MoveTo() {
 		{"Space": "RGB",   "Point": {"R": 98, "G": 218, "B": 255}}
 	]`)
 
-	d := json.NewDecoder(bytes.NewReader(j))
-	w := NewWalker(d)
+	w := NewWalker(bytes.NewReader(j))
 	var v interface{}
 
 	w.MoveTo(0, "Space")
-	d.Decode(&v)
+	w.Decode(&v)
 	fmt.Println(0, "Space", v)
 
 	w.MoveTo(0, "Point", "Cr")
-	d.Decode(&v)
+	w.Decode(&v)
 	fmt.Println(0, "Point", "Cr", v)
 
 	w.MoveTo(1, "Point", "G")
-	d.Decode(&v)
+	w.Decode(&v)
 	fmt.Println(1, "Point", "G", v)
 
 	// Output:

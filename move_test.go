@@ -2,7 +2,6 @@ package json_walk
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -46,8 +45,7 @@ func TestDecoderMoveTo(t *testing.T) {
 
 	for ti, tst := range decoderSkipTests {
 
-		d := json.NewDecoder(bytes.NewBuffer([]byte(tst.in)))
-		w := NewWalker(d)
+		w := NewWalker(bytes.NewBuffer([]byte(tst.in)))
 		testDesc = fmt.Sprintf("#%v '%s'", ti, tst.in)
 
 		match, err = w.MoveTo(tst.path...)
@@ -59,7 +57,7 @@ func TestDecoderMoveTo(t *testing.T) {
 		}
 
 		if match {
-			if err = d.Decode(&v); err != nil {
+			if err = w.Decode(&v); err != nil {
 				t.Errorf("#%v decode: error: '%v' : %v", ti, err, testDesc)
 			}
 			if !reflect.DeepEqual(v, tst.out) {
@@ -138,8 +136,7 @@ func TestDecoderMoveMultiple(t *testing.T) {
 
 	for _, tst := range tests {
 
-		d := json.NewDecoder(bytes.NewBuffer(j))
-		w := NewWalker(d)
+		w := NewWalker(bytes.NewBuffer(j))
 
 		var err error
 		var v interface{}
@@ -154,7 +151,7 @@ func TestDecoderMoveMultiple(t *testing.T) {
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
-			err = d.Decode(&v)
+			err = w.Decode(&v)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

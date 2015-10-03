@@ -7,14 +7,14 @@ import (
 )
 
 type Walker struct {
-	dec *json.Decoder
+	json.Decoder
 
 	navStack    []interface{} // keeps track of the move operations so we can figure out where the next one should be
 	arrayOffset int           // saves the array offset so we can continue MoveToIndex where we left off
 }
 
-func NewWalker(dec *json.Decoder) *Walker {
-	return &Walker{dec: dec}
+func NewWalker(r io.Reader) *Walker {
+	return &Walker{Decoder: *json.NewDecoder(r)}
 }
 
 // MoveTo wraps a json.Decoder causing it to move forward to a given path in the JSON structure.
@@ -80,7 +80,7 @@ func (w *Walker) moveToKey(s string) (bool, error) {
 	var depth = 0 // we start at the beginning of an object
 
 	for {
-		st, err = w.dec.Token()
+		st, err = w.Token()
 		if err == io.EOF {
 			return false, nil
 		} else if err != nil {
@@ -126,7 +126,7 @@ func (w *Walker) moveToIndex(n int) (bool, error) {
 	}
 
 	for {
-		st, err = w.dec.Token()
+		st, err = w.Token()
 		if err == io.EOF {
 			return false, nil
 		} else if err != nil {
@@ -175,7 +175,7 @@ func (w *Walker) moveToCommonPrefix(path ...interface{}) (bool, error) {
 	}
 
 	for {
-		st, err = w.dec.Token()
+		st, err = w.Token()
 		if err == io.EOF {
 			return false, nil
 		} else if err != nil {
