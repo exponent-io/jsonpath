@@ -17,7 +17,7 @@ func NewWalker(dec *json.Decoder) *Walker {
 	return &Walker{dec: dec}
 }
 
-// MoveTo causes the Decoder to move forward to a position in the JSON structure.
+// MoveTo wraps a json.Decoder causing it to move forward to a given path in the JSON structure.
 //
 // The path argument must consist of strings or integers. Each string specifies an JSON object key, and
 // each integer specifies an index into a JSON array.
@@ -28,9 +28,12 @@ func NewWalker(dec *json.Decoder) *Walker {
 //
 // MoveTo("a",3,"v") will move to the value referenced by the "a" key in the current object,
 // followed by a move to the 4th value (index 3) in the array, followed by a move to the value at key "v".
-// In this example, a subsequent call to Next or Decode would unmarshal the value 35.
+// In this example, a subsequent call to the decoder's Decode() would unmarshal the value 35.
 //
 // MoveTo returns a boolean value indicating whether a match was found.
+//
+// The Walker is intended to be used with a JSON stream of tokens. As a result it navigates forward only. The Walker
+// also keeps state about its position in the token stream.
 func (w *Walker) MoveTo(path ...interface{}) (bool, error) {
 
 	var matched bool
@@ -72,15 +75,12 @@ func (w *Walker) MoveTo(path ...interface{}) (bool, error) {
 // the JSON structure.
 func (w *Walker) moveToKey(s string) (bool, error) {
 
-	fmt.Printf("\nmoveToKey: %q\n", s)
-
 	var st json.Token
 	var err error
 	var depth = 0 // we start at the beginning of an object
 
 	for {
 		st, err = w.dec.Token()
-		fmt.Printf("mTK token: %T %v, %v\n", st, st, err)
 		if err == io.EOF {
 			return false, nil
 		} else if err != nil {
@@ -89,13 +89,11 @@ func (w *Walker) moveToKey(s string) (bool, error) {
 
 		switch st := st.(type) {
 		case string:
-			fmt.Printf("string %v %v %v\n", depth, s, st)
 			if depth <= 1 && s == st {
 				w.pushNav(s)
 				return true, nil
 			}
 		case json.Delim:
-			fmt.Printf("delim %v %v %v\n", depth, s, st)
 			switch st {
 			case json.Delim('{'):
 				depth++
@@ -105,11 +103,8 @@ func (w *Walker) moveToKey(s string) (bool, error) {
 					return false, nil
 				}
 			}
-		default:
-			fmt.Printf("default %v %v %v\n", depth, s, st)
 		}
 	}
-	return false, err
 }
 
 // moveToIndex traverses to the JSON value corresponding to the provided array offset.
@@ -124,11 +119,14 @@ func (w *Walker) moveToIndex(n int) (bool, error) {
 
 	skipped := w.arrayOffset
 
-	fmt.Printf("\nmoveToIndex: %v\n skipped: %v", n, skipped)
+	// if there are none to skip, return immediately
+	if skipped == n && skipped > 0 {
+		w.pushNav(n)
+		return true, nil
+	}
 
 	for {
 		st, err = w.dec.Token()
-		fmt.Printf("mTI token: %T %v, %v\n", st, st, err)
 		if err == io.EOF {
 			return false, nil
 		} else if err != nil {
@@ -148,25 +146,21 @@ func (w *Walker) moveToIndex(n int) (bool, error) {
 		case json.Delim('}'):
 			depth--
 		}
-		fmt.Printf("token %v %v %v\n", depth, n, st)
 
 		if depth == 1 {
-			skipped++
-			if skipped == n+1 {
+			if skipped == n {
 				w.pushNav(n)
 				return true, nil
 			}
+			skipped++
 		}
 	}
-	return false, err
 }
 
 // moveToCommonPrefix moves the decoder to a point in the JSON structure that shares a
 // common prefix with the last MoveTo operation. This allows for repeated calls to MoveTo
 // without the caller having to worry about translating absolute moves into relative moves.
 func (w *Walker) moveToCommonPrefix(path ...interface{}) (bool, error) {
-
-	fmt.Printf("\nmoveToCommonPrefix: %v\n", path)
 
 	w.popNav()
 
@@ -176,15 +170,12 @@ func (w *Walker) moveToCommonPrefix(path ...interface{}) (bool, error) {
 	var st json.Token
 	var depth = len(w.navStack)
 
-	fmt.Printf("depth %v %v\n", depth, w.navStack)
-
 	if depth == targetDepth {
 		return true, nil
 	}
 
 	for {
 		st, err = w.dec.Token()
-		fmt.Printf("mTCP token: %T %v, %v\n", st, st, err)
 		if err == io.EOF {
 			return false, nil
 		} else if err != nil {
@@ -201,14 +192,12 @@ func (w *Walker) moveToCommonPrefix(path ...interface{}) (bool, error) {
 		case json.Delim('}'):
 			depth--
 		}
-		fmt.Printf("token %v %v\n", depth, st)
 
 		if depth == targetDepth {
 			w.setNavLen(depth)
 			return true, nil
 		}
 	}
-	return false, err
 }
 
 func (w *Walker) pushNav(n interface{}) {

@@ -110,30 +110,30 @@ func TestDecoderMoveMultiple(t *testing.T) {
 			{path: []interface{}{"subobj", "foo"}, match: true, out: float64(1)},
 			{path: []interface{}{"subobj", "subarray", 0}, match: true, out: float64(1)},
 			{path: []interface{}{"subobj", "subarray", 1}, match: true, out: float64(2)},
-			// {path: []interface{}{"subobj", "subarray", 2}, match: true, out: float64(3)},
-			// {path: []interface{}{"subobj", "subsubobj", "bar"}, match: true, out: float64(2)},
-			// {path: []interface{}{"subobj", "subsubobj", "baz"}, match: true, out: float64(3)},
-			// {path: []interface{}{"subobj", "subsubobj", "array", 0}, match: true, out: "hello"},
-			// {path: []interface{}{"subobj", "subsubobj", "array", 1}, match: true, out: "world"},
-			// {path: []interface{}{"bool"}, match: true, out: true},
+			{path: []interface{}{"subobj", "subarray", 2}, match: true, out: float64(3)},
+			{path: []interface{}{"subobj", "subsubobj", "bar"}, match: true, out: float64(2)},
+			{path: []interface{}{"subobj", "subsubobj", "baz"}, match: true, out: float64(3)},
+			{path: []interface{}{"subobj", "subsubobj", "array", 0}, match: true, out: "hello"},
+			{path: []interface{}{"subobj", "subsubobj", "array", 1}, match: true, out: "world"},
+			{path: []interface{}{"bool"}, match: true, out: true},
 		},
-		// { // Deep, then shallow
-		// 	{path: []interface{}{"subobj", "subsubobj", "array", 0}, match: true, out: "hello"},
-		// 	{path: []interface{}{"bool"}, match: true, out: true},
-		// },
-		// { // Complex, then shallow
-		// 	{path: []interface{}{"array"}, match: true, out: []interface{}{map[string]interface{}{"foo": float64(1)}, map[string]interface{}{"bar": float64(2)}, map[string]interface{}{"baz": float64(3)}}},
-		// 	{path: []interface{}{"subobj", "subsubobj"}, match: true, out: map[string]interface{}{"bar": float64(2), "baz": float64(3), "array": []interface{}{"hello", "world"}}},
-		// 	{path: []interface{}{"bool"}, match: true, out: true},
-		// },
-		// {
-		// 	{path: []interface{}{"foo"}, match: true, out: float64(1)},
-		// 	{path: []interface{}{"test"}, match: true, out: "Hello, world!"},
-		// 	{path: []interface{}{"array", 1, "bar"}, match: true, out: float64(2)},
-		// 	{path: []interface{}{"subobj", "subarray", 1}, match: true, out: float64(2)},
-		// 	{path: []interface{}{"subobj", "subarray", 2}, match: true, out: float64(3)},
-		// 	{path: []interface{}{"subobj", "subsubobj", "array", 1}, match: true, out: "world"},
-		// },
+		{ // Deep, then shallow
+			{path: []interface{}{"subobj", "subsubobj", "array", 0}, match: true, out: "hello"},
+			{path: []interface{}{"bool"}, match: true, out: true},
+		},
+		{ // Complex, then shallow
+			{path: []interface{}{"array"}, match: true, out: []interface{}{map[string]interface{}{"foo": float64(1)}, map[string]interface{}{"bar": float64(2)}, map[string]interface{}{"baz": float64(3)}}},
+			{path: []interface{}{"subobj", "subsubobj"}, match: true, out: map[string]interface{}{"bar": float64(2), "baz": float64(3), "array": []interface{}{"hello", "world"}}},
+			{path: []interface{}{"bool"}, match: true, out: true},
+		},
+		{
+			{path: []interface{}{"foo"}, match: true, out: float64(1)},
+			{path: []interface{}{"test"}, match: true, out: "Hello, world!"},
+			{path: []interface{}{"array", 1, "bar"}, match: true, out: float64(2)},
+			{path: []interface{}{"subobj", "subarray", 1}, match: true, out: float64(2)},
+			{path: []interface{}{"subobj", "subarray", 2}, match: true, out: float64(3)},
+			{path: []interface{}{"subobj", "subsubobj", "array", 1}, match: true, out: "world"},
+		},
 	}
 
 	for _, tst := range tests {
