@@ -3,7 +3,7 @@
 
 # json-seek
 
-Extends the Go runtime's json.Decoder enabling navigation of a stream of json tokens. This package includes a SeekingDecoder which wraps a json.Decoder and extends it to include the SeekTo() method. You should be able to use the SeekingDecoder in any place where a json.Decoder would have been used.
+This package provides a SeekingDecoder which wraps a json.Decoder and extends it to include the SeekTo() method. You should be able to use the SeekingDecoder in any place where a json.Decoder would have been used.
 
 ## Installation
 
