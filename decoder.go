@@ -10,9 +10,6 @@ import (
 type Decoder struct {
 	json.Decoder
 
-	navStack    []interface{} // keeps track of our current "path" within the json stream
-	arrayOffset int           // saves the array offset so we can continue SeekToIndex where we left off
-
 	path    JsonPath
 	context JsonContext
 }
@@ -44,6 +41,14 @@ func NewDecoder(r io.Reader) *Decoder {
 // JSON value before calling SeekTo again.
 func (w *Decoder) SeekTo(path ...interface{}) (bool, error) {
 
+	if len(path) == 0 {
+		return len(w.path) == 0, nil
+	}
+	last := len(path) - 1
+	if i, ok := path[last].(int); ok {
+		path[last] = i - 1
+	}
+
 	for {
 		if w.path.Equal(path) {
 			return true, nil
@@ -57,156 +62,85 @@ func (w *Decoder) SeekTo(path ...interface{}) (bool, error) {
 	}
 }
 
-// seekToKey traverses to the JSON value corresponding to the provided key.
-// The decoder must be currently positioned on a JSON object. seekToKey returns a boolean value
-// indicating whether the key was found as well as an error value if an error occurred while traversing
-// the JSON structure.
-func (w *Decoder) seekToKey(s string) (bool, error) {
-
-	var st json.Token
-	var err error
-	var depth = 0 // we start at the beginning of an object
-	var keyString = true
-
-	for {
-		st, err = w.Token()
-		if err == io.EOF {
-			return false, nil
-		} else if err != nil {
-			return false, err
-		}
-
-		switch st := st.(type) {
-		case string:
-			if depth <= 1 {
-				if keyString && s == st {
-					w.pushNav(s)
-					return true, nil
-				}
-				keyString = !keyString
-			}
-		case json.Delim:
-			switch st {
-			case json.Delim('{'):
-				depth++
-			case json.Delim('}'):
-				depth--
-				if depth <= 0 {
-					return false, nil
-				}
-			}
-			keyString = true
-		default:
-			keyString = true
-		}
+func (d *Decoder) Decode(v interface{}) error {
+	switch d.context {
+	case ObjectValue:
+		d.context = ObjectKey
+		break
+	case ArrayValue:
+		d.path.inc()
+		break
 	}
+	return d.Decoder.Decode(v)
 }
 
-// seekToIndex traverses to the JSON value corresponding to the provided array offset.
-// The decoder must be currently positioned on a JSON array. seekToIndex returns a boolean value
-// indicating whether the value was found as well as an error value if an error occurred while traversing
-// the JSON structure.
-func (w *Decoder) seekToIndex(n int) (bool, error) {
+func (d *Decoder) Path() JsonPath {
+	p := make(JsonPath, len(d.path))
+	copy(p, d.path)
+	return p
+}
 
-	var err error
-	var st json.Token
-	var depth = 0
-
-	skipped := w.arrayOffset
-
-	// if there are none to skip, return immediately
-	if skipped == n && skipped > 0 {
-		w.pushNav(n)
-		return true, nil
+// Token is basically equivalent to the Token() method on json.Decoder. The primary difference is that it distinguishes
+// between strings that are keys and values. String tokens that are object keys are returned as the KeyString	type
+// rather than as a bare string type.
+func (d *Decoder) Token() (json.Token, error) {
+	t, err := d.Decoder.Token()
+	if err != nil {
+		return t, err
 	}
 
-	for {
-		st, err = w.Token()
-		if err == io.EOF {
-			return false, nil
-		} else if err != nil {
-			return false, err
-		}
-
-		switch st {
-		case json.Delim('['):
-			depth++
-		case json.Delim(']'):
-			depth--
-			if depth == 0 {
-				return false, nil
-			}
+	if t == nil {
+		return t, err
+	}
+	switch t := t.(type) {
+	case json.Delim:
+		switch t {
 		case json.Delim('{'):
-			depth++
-		case json.Delim('}'):
-			depth--
-		}
-
-		if depth == 1 {
-			if skipped == n {
-				w.pushNav(n)
-				return true, nil
+			if d.context == ArrayValue {
+				d.path.inc()
 			}
-			skipped++
-		}
-	}
-}
-
-// seekToCommonPrefix moves the decoder to a point in the JSON structure that shares a
-// common prefix with the last SeekTo operation. This allows for repeated calls to SeekTo
-// without the caller having to worry about translating absolute moves into relative moves.
-func (w *Decoder) seekToCommonPrefix(path ...interface{}) (bool, error) {
-
-	w.popNav()
-
-	targetDepth := w.countCommonPrefix(path...)
-
-	var err error
-	var st json.Token
-	var depth = len(w.navStack)
-
-	if depth == targetDepth {
-		return true, nil
-	}
-
-	for {
-		st, err = w.Token()
-		if err == io.EOF {
-			return false, nil
-		} else if err != nil {
-			return false, err
-		}
-
-		switch st {
-		case json.Delim('['):
-			depth++
-		case json.Delim(']'):
-			depth--
-		case json.Delim('{'):
-			depth++
+			d.path.openObj()
+			d.context = ObjectKey
+			break
 		case json.Delim('}'):
-			depth--
+			d.path.closeObj()
+			d.context = d.path.inferContext()
+			break
+		case json.Delim('['):
+			if d.context == ArrayValue {
+				d.path.inc()
+			}
+			d.path.openArr()
+			d.context = ArrayValue
+			break
+		case json.Delim(']'):
+			d.path.closeArr()
+			d.context = d.path.inferContext()
+			break
 		}
-
-		if depth == targetDepth {
-			w.setNavLen(depth)
-			return true, nil
+	case float64, json.Number, bool:
+		switch d.context {
+		case ObjectValue:
+			d.context = ObjectKey
+			break
+		case ArrayValue:
+			d.path.inc()
+			break
 		}
-	}
-}
-
-func (w *Decoder) setNavLen(depth int) {
-	n := len(w.navStack) - depth
-	for i := 0; i < n; i++ {
-		w.popNav()
-	}
-}
-
-func (w *Decoder) countCommonPrefix(path ...interface{}) int {
-	for i, p := range path {
-		if i == len(w.navStack) || p != w.navStack[i] {
-			return i
+		break
+	case string:
+		switch d.context {
+		case ObjectKey:
+			d.path.name(t)
+			d.context = ObjectValue
+			return KeyString(t), err
+		case ObjectValue:
+			d.context = ObjectKey
+		case ArrayValue:
+			d.path.inc()
 		}
+		break
 	}
-	return len(path)
+
+	return t, err
 }

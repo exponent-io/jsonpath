@@ -2,7 +2,6 @@ package json
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 )
 
@@ -71,92 +70,4 @@ func (p *JsonPath) String() string {
 	}
 	buff.Truncate(buff.Len() - 1)
 	return buff.String()
-}
-
-func (d *Decoder) pushNav(n interface{}) {
-	d.navStack = append(d.navStack, n)
-}
-
-func (d *Decoder) popNav() interface{} {
-	last := len(d.navStack) - 1
-	n := d.navStack[last]
-
-	if o, ok := n.(int); ok {
-		d.arrayOffset = o + 1
-	} else {
-		d.arrayOffset = 0
-	}
-	d.navStack = d.navStack[:last]
-	return n
-}
-
-func (d *Decoder) Path() JsonPath {
-	p := make(JsonPath, len(d.path))
-	copy(p, d.path)
-	return p
-}
-
-// Token is basically equivalent to the Token() method on json.Decoder. The primary difference is that it distinguishes
-// between strings that are keys and values. String tokens that are object keys are returned as the KeyString	type
-// rather than as a bare string type.
-func (d *Decoder) Token() (json.Token, error) {
-	t, err := d.Decoder.Token()
-	if err != nil {
-		return t, err
-	}
-
-	if t == nil {
-		return t, err
-	}
-	switch t := t.(type) {
-	case json.Delim:
-		switch t {
-		case json.Delim('{'):
-			if d.context == ArrayValue {
-				d.path.inc()
-			}
-			d.path.openObj()
-			d.context = ObjectKey
-			break
-		case json.Delim('}'):
-			d.path.closeObj()
-			d.context = d.path.inferContext()
-			break
-		case json.Delim('['):
-			if d.context == ArrayValue {
-				d.path.inc()
-			}
-			d.path.openArr()
-			d.context = ArrayValue
-			break
-		case json.Delim(']'):
-			d.path.closeArr()
-			d.context = d.path.inferContext()
-			break
-		}
-	case float64, json.Number, bool:
-		switch d.context {
-		case ObjectValue:
-			d.context = ObjectKey
-			break
-		case ArrayValue:
-			d.path.inc()
-			break
-		}
-		break
-	case string:
-		switch d.context {
-		case ObjectKey:
-			d.path.name(t)
-			d.context = ObjectValue
-			return KeyString(t), err
-		case ObjectValue:
-			d.context = ObjectKey
-		case ArrayValue:
-			d.path.inc()
-		}
-		break
-	}
-
-	return t, err
 }

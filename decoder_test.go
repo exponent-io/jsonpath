@@ -144,11 +144,11 @@ func TestDecoderMoveMultiple(t *testing.T) {
 		var v interface{}
 		var m bool
 
-		for _, step := range tst {
+		for i, step := range tst {
 
 			m, err = w.SeekTo(step.path...)
 			if m != step.match {
-				t.Errorf("expected match=%v, but was match=%v", step.match, m)
+				t.Errorf("@%v expected match=%v, but was match=%v", i, step.match, m)
 			}
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
