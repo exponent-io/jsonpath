@@ -28,7 +28,8 @@ func TestTokens(t *testing.T) {
 				"array": ["hello", "world"]
 			}
 		},
-		"bool": true
+		"bool": true,
+		"a": [[0],[[1]]]
 	}`)
 
 	expPaths := []JsonPath{
@@ -56,6 +57,8 @@ func TestTokens(t *testing.T) {
 		{"subobj", "subsubobj", "array"},
 		{"subobj", "subsubobj"}, {"subobj"},
 		{"bool"}, {"bool"},
+		{"a"}, {"a", -1}, {"a", 0, -1}, {"a", 0, 0}, {"a", 0}, {"a", 1, -1},
+		{"a", 1, 0, -1}, {"a", 1, 0, 0}, {"a", 1, 0}, {"a", 1}, {"a"},
 		{},
 	}
 
@@ -84,6 +87,10 @@ func TestTokens(t *testing.T) {
 		json.Delim(']'),
 		json.Delim('}'), json.Delim('}'),
 		KeyString("bool"), true,
+		KeyString("a"),
+		json.Delim('['), json.Delim('['), float64(0), json.Delim(']'),
+		json.Delim('['), json.Delim('['), float64(1), json.Delim(']'), json.Delim(']'),
+		json.Delim(']'),
 		json.Delim('}'),
 	}
 	outTokens := []json.Token{}
@@ -97,6 +104,7 @@ func TestTokens(t *testing.T) {
 			break
 		} else if err != nil {
 			t.Error(err)
+			break
 		}
 		outTokens = append(outTokens, st)
 		outPaths = append(outPaths, d.Path())
@@ -105,7 +113,6 @@ func TestTokens(t *testing.T) {
 	// Check tokens
 	if len(outTokens) != len(expTokens) {
 		t.Errorf("Out has %v elements, expected %v", len(outTokens), len(expTokens))
-		return
 	}
 	for i, v := range expTokens {
 		if v != outTokens[i] {
