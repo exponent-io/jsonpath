@@ -5,15 +5,18 @@ import (
 	"io"
 )
 
-// SeekingDecoder extends the encoding/json.Decoder to support seeking to a position
-// in a JSON token stream using the SeekTo() method.
+// KeyString is returned from Decoder.Token() to represent each object key string.
+type KeyString string
+
+// Decoder extends the Go runtime's encoding/json.Decoder to support navigating in a stream of JSON tokens.
 type Decoder struct {
 	json.Decoder
 
 	path    JsonPath
-	context JsonContext
+	context jsonContext
 }
 
+// NewDecoder creates a new instance of the extended JSON Decoder.
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{Decoder: *json.NewDecoder(r)}
 }
@@ -34,11 +37,6 @@ func NewDecoder(r io.Reader) *Decoder {
 // SeekTo returns a boolean value indicating whether a match was found.
 //
 // Decoder is intended to be used with a stream of tokens. As a result it navigates forward only.
-//
-// The Decoder also keeps state about its position in the token stream. It is safe to use the Decode()
-// method to read JSON values between calls to SeekTo. However, calling Token() between calls
-// to SeekTo could confuse the SeekingDecoder unless care is made to always read all the tokens that comprise a
-// JSON value before calling SeekTo again.
 func (w *Decoder) SeekTo(path ...interface{}) (bool, error) {
 
 	if len(path) == 0 {
@@ -62,27 +60,31 @@ func (w *Decoder) SeekTo(path ...interface{}) (bool, error) {
 	}
 }
 
+// Decode reads the next JSON-encoded value from its input and stores it in the value pointed to by v. This is
+// equivalent to encoding/json.Decode().
 func (d *Decoder) Decode(v interface{}) error {
 	switch d.context {
-	case ObjectValue:
-		d.context = ObjectKey
+	case objValue:
+		d.context = objKey
 		break
-	case ArrayValue:
-		d.path.inc()
+	case arrValue:
+		d.path.incTop()
 		break
 	}
 	return d.Decoder.Decode(v)
 }
 
+// Path returns a slice of string and/or int values representing the path from the root of the JSON object to the
+// position of the most-recently parsed token.
 func (d *Decoder) Path() JsonPath {
 	p := make(JsonPath, len(d.path))
 	copy(p, d.path)
 	return p
 }
 
-// Token is basically equivalent to the Token() method on json.Decoder. The primary difference is that it distinguishes
-// between strings that are keys and values. String tokens that are object keys are returned as the KeyString	type
-// rather than as a bare string type.
+// Token is equivalent to the Token() method on json.Decoder. The primary difference is that it distinguishes
+// between strings that are keys and and strings that are values. String tokens that are object keys are returned as the
+// KeyString type rather than as a bare string type.
 func (d *Decoder) Token() (json.Token, error) {
 	t, err := d.Decoder.Token()
 	if err != nil {
@@ -90,54 +92,63 @@ func (d *Decoder) Token() (json.Token, error) {
 	}
 
 	if t == nil {
+		switch d.context {
+		case objValue:
+			d.context = objKey
+			break
+		case arrValue:
+			d.path.incTop()
+			break
+		}
 		return t, err
 	}
+
 	switch t := t.(type) {
 	case json.Delim:
 		switch t {
 		case json.Delim('{'):
-			if d.context == ArrayValue {
-				d.path.inc()
+			if d.context == arrValue {
+				d.path.incTop()
 			}
-			d.path.openObj()
-			d.context = ObjectKey
+			d.path.push("")
+			d.context = objKey
 			break
 		case json.Delim('}'):
-			d.path.closeObj()
+			d.path.pop()
 			d.context = d.path.inferContext()
 			break
 		case json.Delim('['):
-			if d.context == ArrayValue {
-				d.path.inc()
+			if d.context == arrValue {
+				d.path.incTop()
 			}
-			d.path.openArr()
-			d.context = ArrayValue
+			d.path.push(-1)
+			d.context = arrValue
 			break
 		case json.Delim(']'):
-			d.path.closeArr()
+			d.path.pop()
 			d.context = d.path.inferContext()
 			break
 		}
 	case float64, json.Number, bool:
 		switch d.context {
-		case ObjectValue:
-			d.context = ObjectKey
+		case objValue:
+			d.context = objKey
 			break
-		case ArrayValue:
-			d.path.inc()
+		case arrValue:
+			d.path.incTop()
 			break
 		}
 		break
 	case string:
 		switch d.context {
-		case ObjectKey:
-			d.path.name(t)
-			d.context = ObjectValue
+		case objKey:
+			d.path.nameTop(t)
+			d.context = objValue
 			return KeyString(t), err
-		case ObjectValue:
-			d.context = ObjectKey
-		case ArrayValue:
-			d.path.inc()
+		case objValue:
+			d.context = objKey
+		case arrValue:
+			d.path.incTop()
 		}
 		break
 	}

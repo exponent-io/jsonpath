@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestTokens(t *testing.T) {
+func TestTokensAndPaths(t *testing.T) {
 	j := []byte(`
 	{
 		"foo": 1,
@@ -126,7 +126,7 @@ func TestTokens(t *testing.T) {
 	}
 	for i, v := range expPaths {
 		if !v.Equal(outPaths[i]) {
-			t.Errorf("@%v exp: %T:%v but was: %T:%v", i, v, v, outPaths[i], outPaths[i].String())
+			t.Errorf("@%v exp: %T:%v but was: %T:%v", i, v, v, outPaths[i], outPaths[i])
 		}
 	}
 }
