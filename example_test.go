@@ -1,4 +1,4 @@
-package json_seek
+package json
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ func ExampleSeekingDecoder_SeekTo() {
 		{"Space": "RGB",   "Point": {"R": 98, "G": 218, "B": 255}}
 	]`)
 
-	w := NewSeekingDecoder(bytes.NewReader(j))
+	w := NewDecoder(bytes.NewReader(j))
 	var v interface{}
 
 	w.SeekTo(0, "Space")

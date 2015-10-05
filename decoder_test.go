@@ -1,4 +1,4 @@
-package json_seek
+package json
 
 import (
 	"bytes"
@@ -47,7 +47,7 @@ func TestDecoderSeekTo(t *testing.T) {
 
 	for ti, tst := range decoderSkipTests {
 
-		w := NewSeekingDecoder(bytes.NewBuffer([]byte(tst.in)))
+		w := NewDecoder(bytes.NewBuffer([]byte(tst.in)))
 		testDesc = fmt.Sprintf("#%v '%s'", ti, tst.in)
 
 		match, err = w.SeekTo(tst.path...)
@@ -138,7 +138,7 @@ func TestDecoderMoveMultiple(t *testing.T) {
 
 	for _, tst := range tests {
 
-		w := NewSeekingDecoder(bytes.NewBuffer(j))
+		w := NewDecoder(bytes.NewBuffer(j))
 
 		var err error
 		var v interface{}
