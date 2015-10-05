@@ -1,5 +1,5 @@
 // Extends the Go runtime's json.Decoder enabling navigation of a stream of json tokens.
-package json
+package jsonpath
 
 import "fmt"
 

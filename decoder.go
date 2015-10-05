@@ -1,4 +1,4 @@
-package json
+package jsonpath
 
 import (
 	"encoding/json"
