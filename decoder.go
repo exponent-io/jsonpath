@@ -83,8 +83,8 @@ func (d *Decoder) Path() JsonPath {
 }
 
 // Token is equivalent to the Token() method on json.Decoder. The primary difference is that it distinguishes
-// between strings that are keys and and strings that are values. String tokens that are object keys are returned as the
-// KeyString type rather than as a bare string type.
+// between strings that are keys and and strings that are values. String tokens that are object keys are returned as a
+// KeyString rather than as a native string.
 func (d *Decoder) Token() (json.Token, error) {
 	t, err := d.Decoder.Token()
 	if err != nil {
@@ -154,4 +154,42 @@ func (d *Decoder) Token() (json.Token, error) {
 	}
 
 	return t, err
+}
+
+func (d *Decoder) Scan(ext *PathActions) (bool, error) {
+
+	matched := false
+	rootPath := d.Path()
+	if rootPath.inferContext() == arrValue {
+		rootPath.incTop()
+	}
+
+	for {
+		_, err := d.Token()
+		if err != nil {
+			return matched, err
+		}
+
+	match:
+		path := d.Path()
+		relPath := JsonPath{}
+
+		// fmt.Printf("rootPath: %v path: %v rel: %v\n", rootPath, path, relPath)
+
+		if len(path) > len(rootPath) {
+			relPath = path[len(rootPath):]
+		} else {
+			return matched, nil
+		}
+
+		if node, ok := ext.node.match(relPath); ok {
+			if node.action != nil {
+				matched = true
+				node.action(d)
+				if d.context == arrValue && d.Decoder.More() {
+					goto match
+				}
+			}
+		}
+	}
 }
