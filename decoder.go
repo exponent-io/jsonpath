@@ -37,10 +37,10 @@ func NewDecoder(r io.Reader) *Decoder {
 // SeekTo returns a boolean value indicating whether a match was found.
 //
 // Decoder is intended to be used with a stream of tokens. As a result it navigates forward only.
-func (w *Decoder) SeekTo(path ...interface{}) (bool, error) {
+func (d *Decoder) SeekTo(path ...interface{}) (bool, error) {
 
 	if len(path) == 0 {
-		return len(w.path) == 0, nil
+		return len(d.path) == 0, nil
 	}
 	last := len(path) - 1
 	if i, ok := path[last].(int); ok {
@@ -48,10 +48,10 @@ func (w *Decoder) SeekTo(path ...interface{}) (bool, error) {
 	}
 
 	for {
-		if w.path.Equal(path) {
+		if d.path.Equal(path) {
 			return true, nil
 		}
-		_, err := w.Token()
+		_, err := d.Token()
 		if err == io.EOF {
 			return false, nil
 		} else if err != nil {
