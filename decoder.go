@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// KeyString is returned from Decoder.Token() to represent each object key string.
+// KeyString is returned from Decoder.Token to represent each key in a JSON object value.
 type KeyString string
 
 // Decoder extends the Go runtime's encoding/json.Decoder to support navigating in a stream of JSON tokens.
@@ -156,37 +156,52 @@ func (d *Decoder) Token() (json.Token, error) {
 	return t, err
 }
 
+// Scan moves forward over the JSON stream consuming all the tokens at the current level (current object, current array)
+// invoking each matching PathAction along the way.
+//
+// Scan returns true if there are more contiguous values to scan (for example in an array).
 func (d *Decoder) Scan(ext *PathActions) (bool, error) {
 
-	matched := false
 	rootPath := d.Path()
+
+	// If this is an array path, increment the root path in our local copy.
 	if rootPath.inferContext() == arrValue {
 		rootPath.incTop()
 	}
 
 	for {
+		// advance the token position
 		_, err := d.Token()
 		if err != nil {
-			return matched, err
+			return false, err
 		}
 
 	match:
-		path := d.Path()
-		relPath := JsonPath{}
+		var relPath JsonPath
 
-		// fmt.Printf("rootPath: %v path: %v rel: %v\n", rootPath, path, relPath)
+		// capture the new JSON path
+		path := d.Path()
 
 		if len(path) > len(rootPath) {
+			// capture the path relative to where the scan started
 			relPath = path[len(rootPath):]
 		} else {
-			return matched, nil
+			// if the path is not longer than the root, then we are done with this scan
+			// return boolean flag indicating if there are more items to scan at the same level
+			return d.Decoder.More(), nil
 		}
 
-		if node, ok := ext.node.match(relPath); ok {
+		// match the relative path against the path actions
+		if node := ext.node.match(relPath); node != nil {
 			if node.action != nil {
-				matched = true
-				node.action(d)
-				if d.context == arrValue && d.Decoder.More() {
+				// we have a match so execute the action
+				err = node.action(d)
+				if err != nil {
+					return d.Decoder.More(), err
+				}
+				// The action may have advanced the decoder. If we are in an array, advancing it further would
+				// skip tokens. So, if we are scanning an array, jump to the top without advancing the token.
+				if d.path.inferContext() == arrValue && d.Decoder.More() {
 					goto match
 				}
 			}

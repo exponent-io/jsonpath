@@ -1,12 +1,14 @@
 package jsonpath
 
+// pathNode is used to construct a trie of paths to be matched
 type pathNode struct {
 	matchOn    interface{} // string, or integer
 	childNodes []pathNode
 	action     DecodeAction
 }
 
-func (n *pathNode) match(path JsonPath) (*pathNode, bool) {
+// match climbs the trie to find a node that matches the given JSON path.
+func (n *pathNode) match(path JsonPath) *pathNode {
 	var node *pathNode = n
 	for _, ps := range path {
 		found := false
@@ -22,20 +24,23 @@ func (n *pathNode) match(path JsonPath) (*pathNode, bool) {
 			}
 		}
 		if !found {
-			return nil, false
+			return nil
 		}
 	}
-	return node, true
+	return node
 }
 
+// PathActions represents a collection of DecodeAction functions that should be called at certain path positions
+// when scanning the JSON stream. PathActions can be created once and used many times in one or more JSON streams.
 type PathActions struct {
 	node pathNode
 }
 
-type DecodeAction func(d *Decoder)
+// DecodeAction handlers are called by the Decoder when scanning objects. See PathActions.Add for more detail.
+type DecodeAction func(d *Decoder) error
 
-// Action specifies an action to call on the Decoder when a particular path is encountered.
-func (je *PathActions) Action(action DecodeAction, path ...interface{}) {
+// Add specifies an action to call on the Decoder when the specified path is encountered.
+func (je *PathActions) Add(action DecodeAction, path ...interface{}) {
 
 	var node *pathNode = &je.node
 	for _, ps := range path {

@@ -47,24 +47,29 @@ func TestPathActionSingleMatch(t *testing.T) {
 	dc := NewDecoder(bytes.NewBuffer(j))
 	actions := &PathActions{}
 
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) error {
 		assert.Equal(t, float64(2), decode(d))
+		return nil
 	}, "array", 1, "bar")
 
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) error {
 		assert.Equal(t, "Hello, world!", decode(d))
+		return nil
 	}, "test")
 
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) error {
 		assert.Equal(t, []interface{}{float64(1), float64(2), float64(3)}, decode(d))
+		return nil
 	}, "subobj", "subarray")
 
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) error {
 		assert.Equal(t, float64(1), decode(d))
+		return nil
 	}, "foo")
 
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) error {
 		assert.Equal(t, float64(2), decode(d))
+		return nil
 	}, "bar")
 
 	dc.Scan(actions)
@@ -101,27 +106,30 @@ func TestPathActionAnyIndex(t *testing.T) {
 	actions := &PathActions{}
 
 	numbers := []int{}
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) (err error) {
 		var v int
-		err := d.Decode(&v)
+		err = d.Decode(&v)
 		require.NoError(t, err)
 		numbers = append(numbers, v)
+		return
 	}, "array", AnyIndex, "num")
 
 	numbers2 := []int{}
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) (err error) {
 		var v int
-		err := d.Decode(&v)
+		err = d.Decode(&v)
 		require.NoError(t, err)
 		numbers2 = append(numbers2, v)
+		return
 	}, "subobj", "subarray", AnyIndex)
 
 	strings := []string{}
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) (err error) {
 		var v string
-		err := d.Decode(&v)
+		err = d.Decode(&v)
 		require.NoError(t, err)
 		strings = append(strings, v)
+		return
 	}, "subobj", "subsubobj", "array", AnyIndex)
 
 	dc.Scan(actions)
@@ -155,22 +163,25 @@ func TestPathActionJsonStream(t *testing.T) {
 
 	var from, to []int
 	actions := &PathActions{}
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) (err error) {
 		var v int
-		err := d.Decode(&v)
+		err = d.Decode(&v)
 		require.NoError(t, err)
 		from = append(from, v)
+		return
 	}, "years", "from")
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) (err error) {
 		var v int
-		err := d.Decode(&v)
+		err = d.Decode(&v)
 		require.NoError(t, err)
 		to = append(to, v)
+		return
 	}, "years", "to")
 
 	var err error
-	for err == nil {
-		_, err = dc.Scan(actions)
+	var ok = true
+	for ok && err == nil {
+		ok, err = dc.Scan(actions)
 		if err != io.EOF {
 			require.NoError(t, err)
 		}
@@ -210,21 +221,24 @@ func TestPathActionJsonSubObjects(t *testing.T) {
 
 	var from, to []int
 	actions := &PathActions{}
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) (err error) {
 		var v int
-		err := d.Decode(&v)
+		err = d.Decode(&v)
 		require.NoError(t, err)
 		from = append(from, v)
+		return
 	}, "data", AnyIndex, "years", "from")
-	actions.Action(func(d *Decoder) {
+	actions.Add(func(d *Decoder) (err error) {
 		var v int
-		err := d.Decode(&v)
+		err = d.Decode(&v)
 		require.NoError(t, err)
 		to = append(to, v)
+		return
 	}, "data", AnyIndex, "years", "to")
 
 	var err error
-	for err == nil {
+	var ok = true
+	for ok && err == nil {
 		_, err = dc.Scan(actions)
 		if err != io.EOF {
 			require.NoError(t, err)
@@ -268,22 +282,24 @@ func TestPathActionSeekThenScan(t *testing.T) {
 
 	var from, to int
 	actions := &PathActions{}
-	actions.Action(func(d *Decoder) {
-		err := d.Decode(&from)
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&from)
 		require.NoError(t, err)
+		return
 	}, "years", "from")
-	actions.Action(func(d *Decoder) {
-		err := d.Decode(&to)
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&to)
 		require.NoError(t, err)
+		return
 	}, "years", "to")
 
 	outs := []string{}
-	for err == nil {
+	for ok && err == nil {
 		ok, err = dc.Scan(actions)
 		if err != io.EOF {
 			require.NoError(t, err)
 		}
-		if ok {
+		if err == nil || err == io.EOF {
 			outs = append(outs, fmt.Sprintf("%v-%v", from, to))
 		}
 	}
@@ -324,22 +340,24 @@ func TestPathActionSeekOffsetThenScan(t *testing.T) {
 
 	var from, to int
 	actions := &PathActions{}
-	actions.Action(func(d *Decoder) {
-		err := d.Decode(&from)
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&from)
 		require.NoError(t, err)
+		return
 	}, "years", "from")
-	actions.Action(func(d *Decoder) {
-		err := d.Decode(&to)
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&to)
 		require.NoError(t, err)
+		return
 	}, "years", "to")
 
 	outs := []string{}
-	for err == nil {
+	for ok && err == nil {
 		ok, err = dc.Scan(actions)
 		if err != io.EOF {
 			require.NoError(t, err)
 		}
-		if ok {
+		if err == nil || err == io.EOF {
 			outs = append(outs, fmt.Sprintf("%v-%v", from, to))
 		}
 	}
@@ -381,13 +399,15 @@ func TestPathActionSeekThenScanThenScan(t *testing.T) {
 
 	var from, to int
 	actions := &PathActions{}
-	actions.Action(func(d *Decoder) {
-		err := d.Decode(&from)
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&from)
 		require.NoError(t, err)
+		return
 	}, "years", "from")
-	actions.Action(func(d *Decoder) {
-		err := d.Decode(&to)
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&to)
 		require.NoError(t, err)
+		return
 	}, "years", "to")
 
 	outs := []string{}
@@ -396,7 +416,7 @@ func TestPathActionSeekThenScanThenScan(t *testing.T) {
 		if err != io.EOF {
 			require.NoError(t, err)
 		}
-		if ok {
+		if err == nil || err == io.EOF {
 			outs = append(outs, fmt.Sprintf("%v-%v", from, to))
 		}
 	}
@@ -412,10 +432,72 @@ func TestPathActionSeekThenScanThenScan(t *testing.T) {
 		if err != io.EOF {
 			require.NoError(t, err)
 		}
-		if ok {
+		if err == nil || err == io.EOF {
 			outs = append(outs, fmt.Sprintf("%v-%v", from, to))
 		}
 	}
 
 	assert.Equal(t, []string{"1975-1985"}, outs)
+}
+
+func TestPathActionSeekThenScanHetero(t *testing.T) {
+
+	j := []byte(`
+    {
+      "set": "cars",
+    	"data": [
+        {
+          "make": "Porsche",
+      		"model": "356 Coupé",
+          "years": { "from": 1948, "to": 1965}
+        },
+        ["other","random","stuff"],
+        {
+          "years": { "from": 1964, "to": 1969},
+          "make": "Ford",
+          "model": "GT40"
+        },
+        {},
+        "str",
+        {
+          "make": "Ferrari",
+          "model": "308 GTB",
+          "years": { "to": 1985, "from": 1975}
+        }
+      ],
+      "more": true
+    }
+  `)
+
+	dc := NewDecoder(bytes.NewBuffer(j))
+	ok, err := dc.SeekTo("data", 0)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	var from, to int
+	actions := &PathActions{}
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&from)
+		require.NoError(t, err)
+		return
+	}, "years", "from")
+	actions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&to)
+		require.NoError(t, err)
+		return
+	}, "years", "to")
+
+	outs := []string{}
+	for ok && err == nil {
+		ok, err = dc.Scan(actions)
+		if err != io.EOF {
+			require.NoError(t, err)
+		}
+		if (err == nil || err == io.EOF) && (from != 0 && to != 0) {
+			outs = append(outs, fmt.Sprintf("%v-%v", from, to))
+			from, to = 0, 0
+		}
+	}
+
+	assert.Equal(t, []string{"1948-1965", "1964-1969", "1975-1985"}, outs)
 }
