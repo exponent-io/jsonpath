@@ -501,3 +501,63 @@ func TestPathActionSeekThenScanHetero(t *testing.T) {
 
 	assert.Equal(t, []string{"1948-1965", "1964-1969", "1975-1985"}, outs)
 }
+
+func TestPathActionNested(t *testing.T) {
+
+	j := []byte(`
+    {
+      "set": "cars",
+    	"data": [
+        {
+          "make": "Porsche",
+      		"model": "356 Coupé",
+          "years": { "from": 1948, "to": 1965}
+        },
+        {
+          "years": { "from": 1964, "to": 1969},
+          "make": "Ford",
+          "model": "GT40"
+        },
+        {
+          "make": "Ferrari",
+          "model": "308 GTB",
+          "years": { "to": 1985, "from": 1975}
+        }
+      ],
+      "more": true
+    }
+  `)
+
+	var from, to int
+	caractions := &PathActions{}
+	caractions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&from)
+		require.NoError(t, err)
+		return
+	}, "years", "from")
+	caractions.Add(func(d *Decoder) (err error) {
+		err = d.Decode(&to)
+		require.NoError(t, err)
+		return
+	}, "years", "to")
+
+	outs := []string{}
+
+	actions := &PathActions{}
+	actions.Add(func(d *Decoder) error {
+
+		_, err := d.Scan(caractions)
+		if err != nil {
+			return err
+		}
+		outs = append(outs, fmt.Sprintf("%v-%v", from, to))
+		return nil
+
+	}, "data", AnyIndex)
+
+	ok, err := NewDecoder(bytes.NewBuffer(j)).Scan(actions)
+	assert.NoError(t, err)
+	assert.False(t, ok)
+
+	assert.Equal(t, []string{"1948-1965", "1964-1969", "1975-1985"}, outs)
+}
