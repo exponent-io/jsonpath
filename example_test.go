@@ -18,20 +18,25 @@ func ExampleDecoder_SeekTo() {
 
 	w.SeekTo(0, "Space")
 	w.Decode(&v)
-	fmt.Println(0, "Space", v)
+	fmt.Printf("%v => %v\n", w.Path(), v)
 
 	w.SeekTo(0, "Point", "Cr")
 	w.Decode(&v)
-	fmt.Println(0, "Point", "Cr", v)
+	fmt.Printf("%v => %v\n", w.Path(), v)
 
 	w.SeekTo(1, "Point", "G")
 	w.Decode(&v)
-	fmt.Println(1, "Point", "G", v)
+	fmt.Printf("%v => %v\n", w.Path(), v)
+
+	// seek to the end of the object
+	w.SeekTo()
+	fmt.Printf("%v\n", w.Path())
 
 	// Output:
-	// 0 Space YCbCr
-	// 0 Point Cr -10
-	// 1 Point G 218
+	// [0 Space] => YCbCr
+	// [0 Point Cr] => -10
+	// [1 Point G] => 218
+	// []
 }
 
 func ExampleDecoder_Scan() {
