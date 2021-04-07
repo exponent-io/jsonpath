@@ -11,7 +11,7 @@ func ExampleDecoder_SeekTo() {
 	var j = []byte(`[
 		{"Space": "YCbCr", "Point": {"Y": 255, "Cb": 0, "Cr": -10}},
 		{"Space": "RGB",   "Point": {"R": 98, "G": 218, "B": 255}}
-	][]`)
+	]`)
 
 	w := NewDecoder(bytes.NewReader(j))
 	var v interface{}
